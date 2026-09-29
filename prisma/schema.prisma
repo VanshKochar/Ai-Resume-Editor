@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  name         String?
+  email        String  @unique
+  passwordHash String? @map("password_hash")
+  avatarUrl    String? @map("avatar_url")
+
+  resumes Resume[]
+  files   File[]
+  exports ResumeExport[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Resume {
+  id     Int @id @default(autoincrement())
+  userId Int @map("user_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?      @db.Text
+  status      ResumeStatus @default(ACTIVE)
+
+  parentResumeId Int? @map("parent_resume_id")
+
+  parentResume Resume? @relation("ResumeBranches", fields: [parentResumeId], references: [id], onDelete: SetNull)
+
+  childResumes Resume[] @relation("ResumeBranches")
+
+  versions ResumeVersion[]
+
+  aiChanges   AiChange[]
+  annotations ResumeAnnotation[]
+  atsReports  AtsReport[]
+  jobMatches  JobMatch[]
+  files       File[]
+  exports     ResumeExport[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId])
+  @@index([parentResumeId])
+  @@map("resumes")
+}
+
+enum ResumeStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+model ResumeVersion {
+  id       Int @id @default(autoincrement())
+  resumeId Int @map("resume_id")
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionNumber Int @map("version_number")
+
+  contentJson Json @map("content_json")
+
+  atsScore Decimal? @map("ats_score") @db.Decimal(5, 2)
+
+  createdBy VersionCreator @map("created_by")
+
+  changeSummary String? @map("change_summary") @db.VarChar(500)
+
+  aiChanges   AiChange[]
+  annotations ResumeAnnotation[]
+  atsReports  AtsReport[]
+  jobMatches  JobMatch[]
+  files       File[]
+  exports     ResumeExport[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([resumeId, versionNumber])
+  @@index([resumeId, createdAt])
+  @@map("resume_versions")
+}
+
+enum VersionCreator {
+  USER
+  AI
+  SYSTEM
+}
+
+model AiChange {
+  id Int @id @default(autoincrement())
+
+  resumeId Int    @map("resume_id")
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionId Int           @map("version_id")
+  version   ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  section String @db.VarChar(100)
+
+  targetId String? @map("target_id") @db.VarChar(150)
+
+  instruction String @db.Text
+
+  originalContent String @map("original_content") @db.Text
+
+  newContent String @map("new_content") @db.Text
+
+  reason String? @db.Text
+
+  model String? @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([resumeId])
+  @@index([versionId])
+  @@map("ai_changes")
+}
+
+model ResumeAnnotation {
+  id Int @id @default(autoincrement())
+
+  resumeId Int    @map("resume_id")
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionId Int           @map("version_id")
+  version   ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  section String @db.VarChar(100)
+
+  targetId String? @map("target_id") @db.VarChar(150)
+
+  instruction String? @db.Text
+
+  coordinatesJson Json? @map("coordinates_json")
+
+  status AnnotationStatus @default(PENDING)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  resolvedAt DateTime? @map("resolved_at")
+
+  @@index([resumeId])
+  @@index([versionId])
+  @@map("resume_annotations")
+}
+
+enum AnnotationStatus {
+  PENDING
+  PROCESSING
+  ACCEPTED
+  REJECTED
+  RESOLVED
+}
+
+model AtsReport {
+  id Int @id @default(autoincrement())
+
+  resumeId Int    @map("resume_id")
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionId Int           @map("version_id")
+  version   ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  overallScore Decimal @map("overall_score") @db.Decimal(5, 2)
+
+  contentScore Decimal? @map("content_score") @db.Decimal(5, 2)
+
+  keywordScore Decimal? @map("keyword_score") @db.Decimal(5, 2)
+
+  formattingScore Decimal? @map("formatting_score") @db.Decimal(5, 2)
+
+  structureScore Decimal? @map("structure_score") @db.Decimal(5, 2)
+
+  missingKeywordsJson Json @map("missing_keywords_json")
+
+  issuesJson Json @map("issues_json")
+
+  suggestionsJson Json @map("suggestions_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([resumeId])
+  @@index([versionId])
+  @@map("ats_reports")
+}
+
+model JobMatch {
+  id Int @id @default(autoincrement())
+
+  resumeId Int    @map("resume_id")
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionId Int           @map("version_id")
+  version   ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  jobTitle String? @map("job_title") @db.VarChar(200)
+
+  company String? @db.VarChar(200)
+
+  jobDescription String @map("job_description") @db.LongText
+
+  matchScore Decimal @map("match_score") @db.Decimal(5, 2)
+
+  matchedKeywordsJson Json @map("matched_keywords_json")
+
+  missingKeywordsJson Json @map("missing_keywords_json")
+
+  weakKeywordsJson Json @map("weak_keywords_json")
+
+  suggestionsJson Json @map("suggestions_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([resumeId])
+  @@index([versionId])
+  @@map("job_matches")
+}
+
+model File {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resumeId Int? @map("resume_id")
+
+  resume Resume? @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionId Int? @map("version_id")
+
+  version ResumeVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+
+  fileType FileType @map("file_type")
+
+  fileName String @map("file_name") @db.VarChar(255)
+
+  storageKey String @unique @map("storage_key") @db.VarChar(500)
+
+  mimeType String @map("mime_type") @db.VarChar(100)
+
+  fileSize BigInt @map("file_size")
+
+  exports ResumeExport[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([resumeId])
+  @@index([versionId])
+  @@map("files")
+}
+
+enum FileType {
+  ORIGINAL_UPLOAD
+  GENERATED_PDF
+  GENERATED_DOCX
+}
+
+model ResumeExport {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resumeId Int @map("resume_id")
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  versionId Int @map("version_id")
+
+  version ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  fileId Int @map("file_id")
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  format ExportFormat
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([resumeId])
+  @@index([versionId])
+  @@map("resume_exports")
+}
+
+enum ExportFormat {
+  PDF
+  DOCX
+}
