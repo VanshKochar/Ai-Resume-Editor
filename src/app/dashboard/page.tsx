@@ -1,40 +1,28 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+
+import { getUserResumes } from "@/services/resume/resume.service";
+
+import ResumeDashboard from "@/components/dashboard/ResumeDashboard";
 
 export default async function DashboardPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
+  const resumes = await getUserResumes(
+    Number(session.user.id)
+  );
+
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold">
-        Dashboard
-      </h1>
-
-      <p className="mt-4">
-        Welcome, {session.user.name ?? session.user.email}
-      </p>
-
-      <form
-        action={async () => {
-          "use server";
-
-          await signOut({
-            redirectTo: "/login",
-          });
-        }}
-        className="mt-6"
-      >
-        <button
-          type="submit"
-          className="rounded-lg bg-black px-4 py-2 text-white"
-        >
-          Sign out
-        </button>
-      </form>
-    </main>
+    <ResumeDashboard
+      user={{
+        name: session.user.name,
+        email: session.user.email,
+      }}
+      resumes={resumes}
+    />
   );
 }
