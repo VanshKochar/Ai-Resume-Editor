@@ -10,7 +10,7 @@ import {
 
 type RouteContext = {
   params: Promise<{
-    resumeID: string;
+    resumeId: string;
   }>;
 };
 
@@ -30,9 +30,9 @@ export async function GET(
     );
   }
 
-  const { resumeID } = await context.params;
+  const { resumeId } = await context.params;
 
-  const id = Number(resumeID);
+  const id = Number(resumeId);
 
   if (!Number.isInteger(id)) {
     return NextResponse.json(
@@ -81,9 +81,9 @@ export async function PATCH(
     );
   }
 
-  const { resumeID } = await context.params;
+  const { resumeId } = await context.params;
 
-  const id = Number(resumeID);
+  const id = Number(resumeId);
 
   if (!Number.isInteger(id)) {
     return NextResponse.json(
